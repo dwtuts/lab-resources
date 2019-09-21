@@ -1,0 +1,87 @@
+---
+  - hosts: all
+    vars:
+      user: vagrant
+    remote_user: {{ user }}
+    become: True
+    tasks:
+       - name: Copy proxy file
+         copy:
+            src: ./02proxy 
+            dest: /etc/apt/apt.conf.d/
+       - name: Run updates
+         apt:
+           upgrade: yes
+           update_cache: yes
+           cache_valid_time: 86400
+       - name: Install aptitude using apt
+         apt: name=aptitude state=latest update_cache=yes force_apt_get=yes
+
+       - name: Install required system packages
+         apt: name={{ item }} state=latest update_cache=yes
+         loop: [ 'apt-transport-https', 'ca-certificates', 'curl', 'software-properties-common', 'python3-pip', 'virtualenv', 'python3-setuptools']
+
+       - name: Add Docker GPG apt Key
+         apt_key:
+          url: https://download.docker.com/linux/ubuntu/gpg
+          state: present
+
+       - name: Add Docker Repository
+         apt_repository:
+          repo: deb https://download.docker.com/linux/ubuntu bionic stable
+          state: present
+
+       - name: Update apt and install docker-ce
+         apt: update_cache=yes name=docker-ce state=latestme=aptitude state=latest update_cache=yes force_apt_get=yes
+
+       - name: Install required system packages
+         apt: name={{ item }} state=latest update_cache=yes
+         loop: [ 'apt-transport-https', 'ca-certificates', 'curl', 'software-properties-common', 'python3-pip', 'virtualenv', 'python3-setuptools']
+
+       - name: Add Docker GPG apt Key
+         apt_key:
+          url: https://download.docker.com/linux/ubuntu/gpg
+          state: present
+
+       - name: Add Docker Repository
+         apt_repository:
+          repo: deb https://download.docker.com/linux/ubuntu bionic stable
+          state: present
+
+       - name: Update apt and install docker-ce
+         apt: update_cache=yes name=docker-ce state=latest
+
+       - name: Enable Docker service
+         service:
+            name: docker
+            enabled: yes
+
+       - name: Add user to docker group
+         user:
+            name: {{ user }}
+            group: docker
+
+
+        # Get things ready for kubernetes
+       - name: Disable SWAP since kubernetes can't work with swap enabled (1/2)
+         shell: |
+          swapoff -a
+       - name: Disable SWAP in fstab since kubernetes can't work with swap enabled (2/2)
+         replace:
+          path: /etc/fstab
+          regexp: '^(.+?\sswap\s+sw\s+.*)$'
+          replace: '# \1'
+      # Install kubernetes
+       - name: Add Kubernetes GPG apt Key
+         apt_key:
+          url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+          state: present
+       - name: Add Kubernetes Repository
+         apt_repository:
+          repo: deb http://apt.kubernetes.io/ kubernetes-xenial main
+          state: present
+       - name: Install kubeadm
+         apt:
+           name: kubeadm
+           state: latest
+
